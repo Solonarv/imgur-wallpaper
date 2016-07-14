@@ -1,5 +1,5 @@
 # Imgur Wallpaper
-Use images from imgur as your wallpaper.
+Use images from imgur as your wallpaper. Tested on an unregistered Windows 7 installation, but it should work on Windows XP and above.
 
 ## How to install
 
