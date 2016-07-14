@@ -31,6 +31,11 @@ def main():
 
     if not os.path.exists(imgcache):
         os.makedirs(imgcache)
+    if not os.path.exists(albumcache):
+        os.makedirs(albumcache)
+    if not os.path.exists(cfg):
+        with open(cfg, 'w') as f:
+            f.write('')
     
     if len(argv)<2 or argv[1] == '':
         print("No URL file specified. Using cached image list.")
