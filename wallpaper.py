@@ -75,7 +75,7 @@ def expand(t, client):
         elif ty == 'g':
             gal = client.gallery_item(pt)
             if gal.is_album:
-                return expand(('a', gal.id))
+                return expand(('a', gal.id), client)
             else:
                 return [gal.link]
         elif ty == 'a':
