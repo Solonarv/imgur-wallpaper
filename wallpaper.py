@@ -152,7 +152,7 @@ def set_bg(img):
             c.close()
     bmp_path = img_path + '.bmp'
     if not os.path.exists(bmp_path):
-        call(['ffmpeg', '-i', img_path, bmp_path])
+        call(['ffmpeg', '-v', 'quiet', '-i', img_path, bmp_path])
     SPI_SETDESKWALLPAPER = 20
     print("setting background to %s" % bmp_path)
     ctypes.windll.user32.SystemParametersInfoA(SPI_SETDESKWALLPAPER, 0, bmp_path , 3)
