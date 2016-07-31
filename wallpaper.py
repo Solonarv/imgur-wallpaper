@@ -89,6 +89,7 @@ def expand(t, client):
                 imgs = [i['link'] for i in al.images]
                 with open(alpath, 'w') as f:
                     f.writelines('\n'.join(imgs))
+                return imgs
 
 def get_images(fname, client):
     print("Reading URLs from %s" % fname)
