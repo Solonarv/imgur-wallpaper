@@ -1,5 +1,5 @@
 from imgurpython    import *
-from urlparse       import urlparse
+from urllib.parse   import urlparse
 from sys            import argv
 from collections    import defaultdict
 from time           import sleep
@@ -8,8 +8,20 @@ from subprocess     import call
 
 import os.path
 import os
-import ctypes
+import platform
 import pycurl
+
+platform = None
+is_64_bit = False # Assume 32-bit by default
+
+if os.platform == "win32":
+    platform = "win32"
+
+if platform.machine().endswith("64"): # As per http://stackoverflow.com/a/12578715, should work for most platforms
+    is_64_bit = True
+    
+if platform in ["win32"]:
+    import ctypes
 
 client_id = 'bbda1ffa8243b11'
 client_secret = '084a967901a372ad0e13f315110a3ccc7a41fcc2'
@@ -22,12 +34,27 @@ cfg = os.path.join(root, 'config.txt')
 imgcache = os.path.join(root, 'imgcache')
 albumcache = os.path.join(root, 'albumcache')
 
-class Config(object): pass
+class Config(object):
+    default_delay = 300
+    def __init__(self, cfg_file = None):
+        self.delay = default_delay
+        if cfg_file is not None and os.path.exists(cfg_file):
+            with open(cfg_file) as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line[0] == '#':
+                        continue
+                    parts = line.split('=', 1)
+                    var = parts[0].strip()
+                    val = parts[1].strip()
+                    if var == "delay":
+                        self.delay = int(val)
+                    
 
 def main():
     client = ImgurClient(client_id, client_secret)
     
-    config = read_config()
+    config = config(cfg)
 
     if not os.path.exists(imgcache):
         os.makedirs(imgcache)
@@ -50,24 +77,9 @@ def main():
         set_bg(current_img)
         sleep(config.delay)
 
-def read_config():
-    config = Config()
-    with open(cfg) as cf:
-        cfd = defaultdict(lambda:"")
-        for line in cf:
-            line = line.strip()
-            if line[0] == '#':
-                continue
-            parts = line.split('=', 1)
-            cfd[parts[0].strip()] = parts[1].strip()
-    
-    config.delay = int(cfd['delay']) if 'delay' in cfd else 300
-    
-    return config
-
 def expand(t, client):
         ty, pt = t
-        print "Expanding", t
+        print("Expanding", t)
         if ty == 'r':
             return [baseurl + pt]
         elif ty == 'i':
@@ -150,12 +162,27 @@ def set_bg(img):
             c.setopt(c.WRITEDATA, f)
             c.perform()
             c.close()
-    bmp_path = img_path + '.bmp'
-    if not os.path.exists(bmp_path):
-        call(['ffmpeg', '-v', 'quiet', '-i', img_path, bmp_path])
-    SPI_SETDESKWALLPAPER = 20
-    print("setting background to %s" % bmp_path)
-    ctypes.windll.user32.SystemParametersInfoA(SPI_SETDESKWALLPAPER, 0, bmp_path , 3)
+    if platform == "win32":
+        setbg_win32(img_path)
+    else:
+        print("Your OS ({}) isn't supported yet or there was an error.".format(sys.platform))
+        exit(1)
+    
 
+def setbg_win32(img_path):
+    user32 = ctypes.windll.user32
+    spi = user32.SystemParametersInfoW if is_64_bit else user32.SystemParametersInfoA
+    # Newer Windows versions don't need BMP conversion anymore, but it doesn't really hurt either
+    bmp_path = os.path.join(imgcache, "_background.bmp")
+    # Remove the old file first, to make sure conversion doesn't trip up
+    if os.path.exists(bmp_path):
+        os.remove(bmp_path)
+    # Call out to ImageMagick for conversion
+    print("converting {} to BMP format".format(img_path))
+    call(['convert', '-quiet', img_path, bmp_path])
+    SPI_SETDESKWALLPAPER = 20
+    print("setting background to {}".format(bmp_path))
+    spi(SPI_SETDESKWALLPAPER, 0, bmp_path , 3)
+    
 if __name__ == '__main__':
     main()
