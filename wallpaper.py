@@ -8,19 +8,20 @@ from subprocess     import call
 
 import os.path
 import os
+import sys
 import platform
 import pycurl
 
-platform = None
+system = None
 is_64_bit = False # Assume 32-bit by default
 
-if os.platform == "win32":
-    platform = "win32"
+if sys.platform == "win32":
+    system = "win32"
 
 if platform.machine().endswith("64"): # As per http://stackoverflow.com/a/12578715, should work for most platforms
     is_64_bit = True
     
-if platform in ["win32"]:
+if system in ["win32"]:
     import ctypes
 
 client_id = 'bbda1ffa8243b11'
@@ -37,7 +38,7 @@ albumcache = os.path.join(root, 'albumcache')
 class Config(object):
     default_delay = 300
     def __init__(self, cfg_file = None):
-        self.delay = default_delay
+        self.delay = Config.default_delay
         if cfg_file is not None and os.path.exists(cfg_file):
             with open(cfg_file) as fh:
                 for line in fh:
@@ -54,7 +55,7 @@ class Config(object):
 def main():
     client = ImgurClient(client_id, client_secret)
     
-    config = config(cfg)
+    config = Config(cfg)
 
     if not os.path.exists(imgcache):
         os.makedirs(imgcache)
@@ -162,7 +163,7 @@ def set_bg(img):
             c.setopt(c.WRITEDATA, f)
             c.perform()
             c.close()
-    if platform == "win32":
+    if system == "win32":
         setbg_win32(img_path)
     else:
         print("Your OS ({}) isn't supported yet or there was an error.".format(sys.platform))
@@ -177,9 +178,9 @@ def setbg_win32(img_path):
     # Remove the old file first, to make sure conversion doesn't trip up
     if os.path.exists(bmp_path):
         os.remove(bmp_path)
-    # Call out to ImageMagick for conversion
+    # Call out to ffmpeg for conversion
     print("converting {} to BMP format".format(img_path))
-    call(['convert', '-quiet', img_path, bmp_path])
+    call(['ffmpeg', '-v', 'quiet', '-i', img_path, bmp_path])
     SPI_SETDESKWALLPAPER = 20
     print("setting background to {}".format(bmp_path))
     spi(SPI_SETDESKWALLPAPER, 0, bmp_path , 3)
