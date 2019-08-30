@@ -1,21 +1,32 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Config where
 
+import Control.Applicative
+import Control.Monad
 import Data.Foldable
+import Data.Maybe
 import System.Environment
 
+import Control.Monad.Trans.Maybe
 import Data.Ini.Config
+import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as Text
+import FileEmbedLzma
+import System.Directory
 import System.FilePath
 
 data TargetType = Album | Image
+  deriving (Eq, Ord, Show)
 
 data Target = Target
   { targetType :: TargetType
   , targetId :: Text
   , targetWeight :: Word
   }
+  deriving (Eq, Ord, Show)
 
 data Cfg = Cfg
   { cfgCacheMaxImgs :: Int
@@ -28,7 +39,7 @@ data Cfg = Cfg
 instance Semigroup Cfg where
   cfg1 <> cfg2 = Cfg
     { cfgCacheMaxImgs = cfgCacheMaxImgs cfg2
-    , cfgCacheDir = cfgCacheMaxImgs cfg2
+    , cfgCacheDir = cfgCacheDir cfg2
     , cfgTargets = cfgTargets cfg1 <> cfgTargets cfg2
     }
 
@@ -43,30 +54,41 @@ cfgParser = do
         do fieldOf    "type" readTargetType
         do fieldOf    "id" string
         do fieldDefOf "weight" number 1
-  pure (Target maxCache cacheDir (toList targets))
+  pure (Cfg maxCache cacheDir (toList targets))
   where
     readTargetType s
       | s `elem` ["album", "a"] = Right Album
       | s `elem` ["image", "img", "i"] = Right Image
-      | otherwise = Left ("invalid target type: '" <> s <> "', must be 'album' or 'image'")
+      | otherwise = Left ("invalid target type: '" <> Text.unpack s <> "', must be 'album' or 'image'")
 
 errorIO :: String -> IO a
 errorIO = ioError . userError
 
 loadConfigFrom :: FilePath -> IO Cfg
-loadConfigFrom = Text.readFile cfgPath >=> flip parseIniFile cfgParser >=> either errorIO pure
+loadConfigFrom = either errorIO pure . flip parseIniFile cfgParser <=< Text.readFile 
 
-loadConfig :: IO Cfg
-loadConfig = do
-  configLocation <- asum
-    [                                                            getEnvNN "IMGUR_WALLPAPER_CONFIG"
-    , (              </> "imgur-wallpaper" </> "config.ini") <$> getEnvNN "XDG_CONFIG_HOME"
-    , (</> ".config" </> "imgur-wallpaper" </> "config.ini") <$> getEnvNN "HOME"
-    ]
-  loadConfig configLocation
+configLocEnv :: IO FilePath
+configLocEnv = asum
+  [ getEnvNN "IMGUR_WALLPAPER_CONFIG"
+  , (</> "config.ini") <$> getXdgDirectory XdgConfig "imgur-wallpaper"
+  ]
 
 getEnvNN :: String -> IO String
 getEnvNN k = do
   s <- getEnv k
-  when (null s) (errorIO $ "getEnvNN: environment variable '" <> k <> "'is not defined!")
+  when (null s) $ errorIO $ "Environment variable '" <> k <> "' empty or not set!"
   pure s
+
+defaultConfigTemplate :: Text
+defaultConfigTemplate = $(embedText "data/default-config.ini")
+
+defaultConfigTxt :: IO Text
+defaultConfigTxt = do
+  cacheDir <- asum
+    [ getEnvNN "IMGUR_WALLPAPER_CACHE_DIR"
+    , getXdgDirectory XdgCache "imgur-wallpaper"
+    ]
+  pure
+    $ Text.replace "$DEFAULT_CACHEDIR" (Text.pack cacheDir)
+    $ defaultConfigTemplate
+  

@@ -19,8 +19,18 @@ extra-source-files:  CHANGELOG.md, README.md
 
 executable imgur-wallpaper
   main-is:             Main.hs
-  -- other-modules:
+  other-modules:       Config
   -- other-extensions:
-  build-depends:       base ^>=4.12.0.0
+  build-depends:       base ^>= 4.12
+                     , optparse-applicative ^>= 0.15
+                     , config-ini ^>= 0.2.4
+                     , aeson ^>= 1.4.4
+                     , req ^>= 2.1.0
+                     , mtl ^>= 2.2.2
+                     , text ^>= 1.2.3
+                     , transformers ^>= 0.5.6
+                     , filepath ^>= 1.4.2
+                     , file-embed-lzma ^>= 0
+                     , directory ^>= 1.3.4
   hs-source-dirs:      src
   default-language:    Haskell2010
