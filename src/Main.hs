@@ -69,8 +69,6 @@ main = do
       Text.writeFile (argsCfgLoc args) =<< defaultConfigTxt
       putStrLn $ "Wrote default configuration to " <> argsCfgLoc args
 
-data Env = Env
-
 loadEnv :: FilePath -> IO Env
 loadEnv cfgPath = pure Env
 
